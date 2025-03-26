@@ -44,7 +44,9 @@ app.post("/send-email", (req, res) => {
   }
 
   // Get current date and time
-  const currentDateTime = new Date().toLocaleString();
+  const currentDateTime = new Date().toLocaleString("en-US", {
+    timeZone: "America/New_York",
+  });
 
   const mailOptions = {
     from: `"RiverPatch Studio" <${process.env.EMAIL_USER}>`,
