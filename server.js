@@ -49,7 +49,7 @@ app.post("/send-email", (req, res) => {
   });
 
   const mailOptions = {
-    from: `"RiverPatch Studio" <${process.env.EMAIL_USER}>`,
+    from: `"RiverPatch Studio" <hello@riverpatch.com>`,
     replyTo: email,
     to: process.env.EMAIL_USER, // Your own email address
     subject: `New Project Inquiry from ${firstName} ${lastName} - RiverPatch Studio`,
@@ -115,7 +115,7 @@ app.post("/send-email", (req, res) => {
         <div style="background-color: #001140; padding: 15px; text-align: center; border-top: 1px solid #c0bcf5;">
           <p style="color: #defafe; font-size: 14px; margin: 0 0 10px;">Ready to get started?</p>
           <a href="mailto:${email}" style="display: inline-block; background-color: #ef476f; color: #e6f2f9; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: 500; transition: background-color 0.3s;">Reply to ${firstName}</a>
-          <p style="color: #6f7d7f; font-size: 12px; margin: 15px 0 0;">RiverPatch Studio | <a href="mailto:team@riverpatch.com" style="color: #c0bcf5; text-decoration: none;">team@riverpatch.com</a></p>
+          <p style="color: #6f7d7f; font-size: 12px; margin: 15px 0 0;">RiverPatch Studio | <a href="mailto:hello@riverpatch.com" style="color: #c0bcf5; text-decoration: none;">team@riverpatch.com</a></p>
         </div>
       </div>
     `,
