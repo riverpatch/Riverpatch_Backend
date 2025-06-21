@@ -12,18 +12,42 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
   process.exit(1);
 }
 
-// Middleware
-app.use(cors());
+// Updated CORS configuration for production deployment
+const allowedOrigins = [
+  "https://riverpatchnext.vercel.app",
+  "http://localhost:3000",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
 app.use(express.json());
 
-// Nodemailer transporter setup
-const transporter = nodemailer.createTransport({
+// Nodemailer transporter setup with timeout
+const transporter = nodemailer.createTransporter({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
 });
+
+// Set send timeout for Vercel compatibility (max 10s on free tier)
+transporter.set("send_timeout", 9000); // 9 seconds
 
 // POST route to handle form submission
 app.post("/send-email", async (req, res) => {
@@ -114,7 +138,11 @@ app.post("/send-email", async (req, res) => {
     console.log("Email sent successfully:", info.response);
     return res.status(200).json({ message: "Email sent successfully." });
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Full email error:", {
+      code: error.code,
+      response: error.response,
+      stack: error.stack,
+    });
     return res.status(500).json({ error: "Failed to send email." });
   }
 });
