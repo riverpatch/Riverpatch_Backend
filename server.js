@@ -13,37 +13,27 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 }
 
 // Middleware
-app.use(cors()); // Allows requests from your React app
-app.use(express.json()); // Parse JSON bodies
+app.use(cors());
+app.use(express.json());
 
 // Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // e.g., dyreland5455@gmail.com
-    pass: process.env.EMAIL_PASS, // Your Gmail app password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
-// Verify transporter setup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("Error verifying transporter:", error);
-  } else {
-    console.log("Transporter verified successfully.");
-  }
-});
-
 // POST route to handle form submission
-app.post("/send-email", (req, res) => {
+app.post("/send-email", async (req, res) => {
   const { firstName, lastName, email, company, budget, message } = req.body;
 
-  // Basic validation for required fields
+  // Basic validation
   if (!firstName || !lastName || !email || !message) {
     return res.status(400).json({ error: "Missing required fields." });
   }
 
-  // Get current date and time
   const currentDateTime = new Date().toLocaleString("en-US", {
     timeZone: "America/New_York",
   });
@@ -51,9 +41,8 @@ app.post("/send-email", (req, res) => {
   const mailOptions = {
     from: `"RiverPatch Studio" <hello@riverpatch.com>`,
     replyTo: email,
-    to: process.env.EMAIL_USER, // Your own email address
+    to: process.env.EMAIL_USER,
     subject: `New Project Inquiry from ${firstName} ${lastName} - RiverPatch Studio`,
-    // Plain text fallback – remove this property if you want HTML-only emails.
     text: `
       Date and Time: ${currentDateTime}
       Name: ${firstName} ${lastName}
@@ -64,7 +53,6 @@ app.post("/send-email", (req, res) => {
       
       Sent from RiverPatch Studio | team@riverpatch.com
     `,
-    // HTML version of the email
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 20px auto; background: linear-gradient(135deg, #001140, #261e67); border-radius: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); overflow: hidden;">
         <!-- Header -->
@@ -121,19 +109,22 @@ app.post("/send-email", (req, res) => {
     `,
   };
 
-  console.log("Sending email with the following options:", mailOptions);
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error("Error sending email:", error);
-      return res.status(500).json({ error: "Failed to send email." });
-    }
+  try {
+    const info = await transporter.sendMail(mailOptions);
     console.log("Email sent successfully:", info.response);
-    res.status(200).json({ message: "Email sent successfully." });
-  });
+    return res.status(200).json({ message: "Email sent successfully." });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return res.status(500).json({ error: "Failed to send email." });
+  }
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// Export for Vercel serverless functions
+module.exports = app;
+
+// Start server locally if not in Vercel environment
+if (process.env.VERCEL !== "1") {
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
+}
