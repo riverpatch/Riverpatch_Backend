@@ -65,7 +65,7 @@ app.get("/", (req, res) => {
 });
 
 // Nodemailer transporter setup with timeout
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
