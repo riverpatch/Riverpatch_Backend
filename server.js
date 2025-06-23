@@ -12,30 +12,57 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
   process.exit(1);
 }
 
-// Updated CORS configuration for production deployment
+// Enhanced CORS configuration for production deployment
 const allowedOrigins = [
   "https://riverpatchnext.vercel.app",
   "http://localhost:3000",
+  "https://localhost:3000", // Sometimes needed for local HTTPS
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
+      console.log("Request from origin:", origin); // Debug log
+
+      // Allow requests with no origin (like mobile apps, curl, or same-origin)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        console.error("Blocked by CORS:", origin);
+        callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
       }
     },
-    methods: ["POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false, // Set to false unless you need cookies
   })
 );
 
+// Explicit preflight handler
+app.options("/send-email", (req, res) => {
+  const origin = req.get("Origin");
+  console.log("OPTIONS request from:", origin);
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  }
+  res.status(204).end();
+});
+
 app.use(express.json());
+
+// Health check endpoint
+app.get("/", (req, res) => {
+  res.json({
+    status: "Server is running",
+    timestamp: new Date().toISOString(),
+    cors: "enabled",
+  });
+});
 
 // Nodemailer transporter setup with timeout
 const transporter = nodemailer.createTransporter({
@@ -44,17 +71,20 @@ const transporter = nodemailer.createTransporter({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  timeout: 9000, // 9 seconds for Vercel compatibility
 });
-
-// Set send timeout for Vercel compatibility (max 10s on free tier)
-transporter.set("send_timeout", 9000); // 9 seconds
 
 // POST route to handle form submission
 app.post("/send-email", async (req, res) => {
+  console.log("POST /send-email called");
+  console.log("Request origin:", req.get("Origin"));
+  console.log("Request body:", req.body);
+
   const { firstName, lastName, email, company, budget, message } = req.body;
 
   // Basic validation
   if (!firstName || !lastName || !email || !message) {
+    console.log("Validation failed - missing required fields");
     return res.status(400).json({ error: "Missing required fields." });
   }
 
@@ -63,7 +93,7 @@ app.post("/send-email", async (req, res) => {
   });
 
   const mailOptions = {
-    from: `"RiverPatch Studio" <hello@riverpatch.com>`,
+    from: `"RiverPatch Studio" <${process.env.EMAIL_USER}>`, // Use EMAIL_USER as sender
     replyTo: email,
     to: process.env.EMAIL_USER,
     subject: `New Project Inquiry from ${firstName} ${lastName} - RiverPatch Studio`,
@@ -134,16 +164,26 @@ app.post("/send-email", async (req, res) => {
   };
 
   try {
+    console.log("Attempting to send email...");
     const info = await transporter.sendMail(mailOptions);
     console.log("Email sent successfully:", info.response);
-    return res.status(200).json({ message: "Email sent successfully." });
+    return res.status(200).json({
+      message: "Email sent successfully.",
+      messageId: info.messageId,
+    });
   } catch (error) {
     console.error("Full email error:", {
       code: error.code,
+      command: error.command,
       response: error.response,
+      responseCode: error.responseCode,
       stack: error.stack,
     });
-    return res.status(500).json({ error: "Failed to send email." });
+    return res.status(500).json({
+      error: "Failed to send email.",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 });
 
@@ -154,5 +194,6 @@ module.exports = app;
 if (process.env.VERCEL !== "1") {
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    console.log("CORS enabled for origins:", allowedOrigins);
   });
 }
