@@ -15,6 +15,7 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 // Enhanced CORS configuration for production deployment
 const allowedOrigins = [
   "https://riverpatchnext.vercel.app",
+  "https://www.riverpatch.com",
   "http://localhost:3000",
   "https://localhost:3000", // Sometimes needed for local HTTPS
 ];
